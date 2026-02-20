@@ -18,12 +18,23 @@ Claude Kitten wraps the official `claude` CLI in a PTY proxy that intercepts out
 
 - Python 3.12+
 - [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) installed and available on PATH
+- `espeak-ng` (required by KittenTTS for phoneme generation)
 - macOS (`afplay`) or Linux (`aplay`) for audio playback
 - Unix-like OS (PTY-based — Windows is not supported)
 
 ## Installation
 
+**macOS:**
+
 ```bash
+brew install espeak-ng
+pip install -e .
+```
+
+**Linux (Debian/Ubuntu):**
+
+```bash
+sudo apt install espeak-ng
 pip install -e .
 ```
 
