@@ -8,11 +8,11 @@ import time
 # During replay ❯ appears rapidly; once the real prompt settles, the gap exceeds this.
 _RESUME_SETTLE = 1.0
 
-_RESUME_ARGS = frozenset(("--continue", "-c", "--resume"))
+_RESUME_FLAGS = frozenset(("--continue", "-c", "--resume"))
 
 
 def _is_resume(claude_args: list[str]) -> bool:
-    return any(a in _RESUME_ARGS for a in claude_args)
+    return any(a in _RESUME_FLAGS or a.startswith("--continue=") or a.startswith("--resume=") for a in claude_args)
 
 
 def main():
@@ -32,26 +32,28 @@ def main():
     parser = VoiceParser()
     player = None
 
-    if _is_resume(claude_args):
+    resuming = _is_resume(claude_args)
+    if resuming:
         parser.muted = True
 
     if not known.no_audio:
         from claude_kitten.audio import AudioPlayer
         from claude_kitten.tts import TTSEngine
 
-        import random
-
         tts = TTSEngine(voice=known.voice)
         player = AudioPlayer(tts, debug=known.debug)
 
-        welcome_messages = [
-            "Claude Kitten at your service!",
-            "Ready to assist you with feline agility!",
-            "Your voice-enabled Claude has arrived!",
-            "Meow! Voice features are online.",
-            "KittenTTS is ready—how can I help you today?",
-        ]
-        player.enqueue(random.choice(welcome_messages))
+        if not resuming:
+            import random
+
+            welcome_messages = [
+                "Claude Kitten at your service!",
+                "Ready to assist you with feline agility!",
+                "Your voice-enabled Claude has arrived!",
+                "Meow! Voice features are online.",
+                "KittenTTS is ready—how can I help you today?",
+            ]
+            player.enqueue(random.choice(welcome_messages))
 
     def on_question(text: str):
         if parser.muted:

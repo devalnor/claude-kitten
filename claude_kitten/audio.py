@@ -57,11 +57,8 @@ class AudioPlayer:
         self._queue.put(text)
 
     def shutdown(self):
-        # Clear pending items so we exit quickly
-        while not self._queue.empty():
-            try:
-                self._queue.get_nowait()
-            except queue.Empty:
-                break
+        # Swap in a fresh queue so the worker only sees the sentinel.
+        # This avoids a race between checking empty() and get_nowait().
+        self._queue = queue.Queue()
         self._queue.put(None)
         self._thread.join(timeout=5)

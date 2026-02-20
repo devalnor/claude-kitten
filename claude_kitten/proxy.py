@@ -5,7 +5,6 @@ import os
 import select
 import shutil
 import signal
-import struct
 import sys
 import termios
 import tty
@@ -95,7 +94,10 @@ def _spawn_with_winsize(
 
     def _on_resize(_sig: int, _frame: object) -> None:
         _copy_winsize(stdin_fd, master_fd)
-        os.kill(pid, signal.SIGWINCH)
+        try:
+            os.kill(pid, signal.SIGWINCH)
+        except ProcessLookupError:
+            pass
 
     signal.signal(signal.SIGWINCH, _on_resize)
 

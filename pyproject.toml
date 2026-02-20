@@ -4,6 +4,17 @@ version = "0.1.0"
 description = "Claude CLI with voice — questions spoken aloud via KittenTTS"
 requires-python = ">=3.12"
 license = "MIT"
+readme = "README.md"
+authors = [{ name = "maxime.io" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+]
+
+[project.urls]
+Repository = "https://github.com/devalnor/claude-kitten"
 dependencies = [
     "kittentts",
     "soundfile",

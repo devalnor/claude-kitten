@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import threading
 from contextlib import contextmanager
 
 import numpy as np
@@ -10,19 +11,22 @@ SAMPLE_RATE = 24_000
 # Suppress noisy ONNX Runtime logs (level 4 = FATAL only)
 os.environ.setdefault("ORT_LOG_LEVEL", "4")
 
+_stderr_lock = threading.Lock()
+
 
 @contextmanager
 def _suppress_stderr():
-    """Redirect fd 2 to /dev/null to silence C++ runtime noise."""
-    saved = os.dup(2)
-    try:
-        devnull = os.open(os.devnull, os.O_WRONLY)
-        os.dup2(devnull, 2)
-        os.close(devnull)
-        yield
-    finally:
-        os.dup2(saved, 2)
-        os.close(saved)
+    """Redirect fd 2 to /dev/null to silence C++ runtime noise (thread-safe)."""
+    with _stderr_lock:
+        saved = os.dup(2)
+        try:
+            devnull = os.open(os.devnull, os.O_WRONLY)
+            os.dup2(devnull, 2)
+            os.close(devnull)
+            yield
+        finally:
+            os.dup2(saved, 2)
+            os.close(saved)
 
 
 class TTSEngine:

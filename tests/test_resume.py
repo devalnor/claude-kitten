@@ -10,6 +10,11 @@ def test_detect_resume_flag():
     assert _is_resume(["--resume"]) is True
 
 
+def test_detect_continue_with_session_id():
+    assert _is_resume(["--continue=abc-123"]) is True
+    assert _is_resume(["--resume=xyz"]) is True
+
+
 def test_no_resume_flag():
     assert _is_resume([]) is False
     assert _is_resume(["-p", "hello"]) is False
