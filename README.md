@@ -4,12 +4,12 @@ Claude CLI with voice — important phrases spoken aloud via KittenTTS.
 
 > A small weekend project built quickly with Claude. Tested on macOS — should work on Linux too but not tested yet.
 
-Claude Kitten wraps the official `claude` CLI in a PTY proxy that intercepts output in real time. When Claude marks a phrase with the cat emoji (`🐱`), the text is extracted, synthesized to speech with [KittenTTS](https://github.com/KittenML/KittenTTS), and played through your speakers — while the full terminal experience remains unchanged.
+Claude Kitten wraps the official `claude` CLI in a PTY proxy that intercepts output in real time. When Claude marks a phrase with `🐱💬 ... 🐱💬` markers, the text is extracted, synthesized to speech with [KittenTTS](https://github.com/KittenML/KittenTTS), and played through your speakers — while the full terminal experience remains unchanged.
 
 ## How it works
 
 1. `claude-kitten` spawns `claude` inside a pseudo-terminal (PTY)
-2. A system prompt is injected telling Claude it can speak by wrapping text in `🐱 ... 🐱` markers
+2. A system prompt is injected telling Claude it can speak by wrapping text in `🐱💬 ... 🐱💬` markers
 3. The PTY output stream is parsed in real time to extract voice blocks
 4. Extracted text is synthesized with KittenTTS and played in a background thread
 5. All terminal output (including ANSI codes, colors, interactive UI) passes through unmodified
