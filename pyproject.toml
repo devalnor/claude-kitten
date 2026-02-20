@@ -1,0 +1,21 @@
+[project]
+name = "claude-kitten"
+version = "0.1.0"
+description = "Claude CLI with voice — questions spoken aloud via KittenTTS"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = [
+    "kittentts",
+    "soundfile",
+    "numpy",
+]
+
+[project.scripts]
+claude-kitten = "claude_kitten.__main__:main"
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
