@@ -1,0 +1,14 @@
+{
+  "voice": "Kiki",
+  "volume": 0.5,
+  "presence": "mid",
+  "enabled": true,
+  "events": {
+    "session_start": true,
+    "stop_tts": true,
+    "error_sound": true,
+    "anti_spam": true
+  },
+  "spam_threshold": 3,
+  "spam_window_seconds": 10
+}

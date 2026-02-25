@@ -1,26 +1,25 @@
 # Claude Kitten
 
-Claude CLI with voice — important phrases spoken aloud via KittenTTS.
+Claude Code plugin — important phrases spoken aloud via KittenTTS.
 
 > A small weekend project built quickly with Claude. Tested on macOS — should work on Linux too but not tested yet.
 
-Claude Kitten wraps the official `claude` CLI in a PTY proxy that intercepts output in real time. When Claude marks a phrase with `🐱💬 ... 🐱💬` markers, the text is extracted, synthesized to speech with [KittenTTS](https://github.com/KittenML/KittenTTS), and played through your speakers — while the full terminal experience remains unchanged.
+Claude Kitten is a plugin for the official `claude` CLI. When Claude marks a phrase with `🐱💬 ... 🐱💬` markers, the text is extracted, synthesized to speech with [KittenTTS](https://github.com/KittenML/KittenTTS), and played through your speakers.
 
 ## How it works
 
-1. `claude-kitten` spawns `claude` inside a pseudo-terminal (PTY)
-2. A system prompt is injected telling Claude it can speak by wrapping text in `🐱💬 ... 🐱💬` markers
-3. The PTY output stream is parsed in real time to extract voice blocks
-4. Extracted text is synthesized with KittenTTS and played in a background thread
-5. All terminal output (including ANSI codes, colors, interactive UI) passes through unmodified
+1. `claude-kitten` launches `claude` with a system prompt telling it to wrap spoken text in `🐱💬 ... 🐱💬` markers
+2. Plugin hooks intercept Claude Code events (session start, response, tool failure)
+3. Marked text is extracted and synthesized with KittenTTS
+4. Error sounds and greetings are pre-cached per voice for instant playback
+5. All terminal output passes through unmodified
 
 ## Requirements
 
 - Python 3.12+
 - [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) installed and available on PATH
 - `espeak-ng` (required by KittenTTS for phoneme generation)
-- macOS (`afplay`) or Linux (`aplay`) for audio playback
-- Unix-like OS (PTY-based — Windows is not supported)
+- macOS (`afplay`) or Linux (`paplay`/`aplay`) for audio playback
 
 ## Installation
 
@@ -28,29 +27,28 @@ Claude Kitten wraps the official `claude` CLI in a PTY proxy that intercepts out
 
 ```bash
 brew install espeak-ng
-pip install -e .
+bash install.sh
 ```
 
 **Linux (Debian/Ubuntu):**
 
 ```bash
 sudo apt install espeak-ng
-pip install -e .
+bash install.sh
 ```
 
 ## Usage
 
 ```bash
-claude-kitten [options] [-- claude-args...]
+claude-kitten [--presence low|mid|high] [-- claude-args...]
 ```
 
 ### Options
 
 | Flag | Description |
 |------|-------------|
-| `--no-audio` | Disable TTS audio (silent mode) |
-| `--voice VOICE` | KittenTTS voice name (default: `Kiki`) |
-| `--debug` | Print detected voice blocks to stderr |
+| `--presence LEVEL` | Voice frequency: `low` (critical only), `mid` (default), `high` (verbose) |
+| `--version`, `-V` | Print version and exit |
 
 All other arguments are forwarded to `claude`.
 
@@ -60,30 +58,73 @@ All other arguments are forwarded to `claude`.
 # Basic usage
 claude-kitten
 
-# Use a different voice
-claude-kitten --voice Bella
+# Quiet mode — only speaks for blocking questions
+claude-kitten --presence low
+
+# Verbose mode — speaks frequently
+claude-kitten --presence high
 
 # Resume a previous session
-claude-kitten -c
+claude-kitten -- -c
 
 # Pass flags to claude
 claude-kitten -- --model sonnet
 ```
 
+### In-session configuration
+
+Use `/claude-kitten` inside a Claude session to change voice, volume, or toggle features.
+
 ## Architecture
 
 ```
 claude_kitten/
-├── __main__.py   # CLI entry point, argument parsing, resume detection
-├── proxy.py      # PTY proxy — spawns claude, injects voice prompt, reads output
-├── parser.py     # Stream parser — strips ANSI, extracts 🐱 voice blocks
-├── tts.py        # KittenTTS wrapper with lazy model loading
-└── audio.py      # Background thread audio player (afplay/aplay)
+├── __main__.py          # CLI launcher — injects voice prompt, loads plugin
+└── markers.py           # Voice marker extraction (🐱💬 pairs)
+
+scripts/
+├── kitten-hook.sh       # Plugin hook handler — routes Claude Code events
+├── tts-speak.py         # Live TTS synthesis and playback
+├── generate-sounds.py   # Pre-generates cached sounds (error + greetings)
+├── parse_markers.py     # Extracts marked text from assistant messages
+└── statusline.sh        # Status line indicator
+
+greetings.json           # Greeting texts (shared between hook and generator)
+config.default.json      # Default plugin configuration
 ```
 
-## Resume handling
+### Sound cache
 
-When resuming a session (`--continue`, `-c`, `--resume`, or `/resume`), voice output is temporarily muted to avoid replaying old speech. Audio unmutes once the real prompt settles (no new `❯` prompt for 1 second).
+Sounds are pre-generated per voice using a higher quality TTS model and cached at:
+
+```
+~/.cache/claude-kitten/<version>/
+  error-<voice>.wav         # Error sound (played on tool failure)
+  greeting-<voice>-0..9.wav # Session greetings (5 mid + 5 high presence)
+```
+
+The cache is version-keyed — bumping the version automatically invalidates old sounds. On first session with a new voice or version, greetings fall back to live TTS while the cache generates in the background.
+
+## Configuration
+
+Edit `config.json` (created on first run from `config.default.json`):
+
+```json
+{
+  "voice": "Kiki",
+  "volume": 0.5,
+  "presence": "mid",
+  "enabled": true,
+  "events": {
+    "session_start": true,
+    "stop_tts": true,
+    "error_sound": true,
+    "anti_spam": true
+  }
+}
+```
+
+Available voices: Kiki, Bella, Luna, Jasper, Bruno, Rosie, Hugo, Leo.
 
 ## Development
 
