@@ -155,6 +155,9 @@ def main() -> None:
 
 if __name__ == "__main__":
     try:
+        # Become a process group leader so the parent shell can kill this
+        # process and all its children (afplay/paplay) with kill -- -$PID.
+        os.setpgrp()
         main()
     except Exception:
         # Exit silently on any error — never block Claude

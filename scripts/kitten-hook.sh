@@ -140,12 +140,21 @@ PYEOF
 # Sanitize SESSION_ID for safe /tmp filenames (strip path separators, keep alphanum/dash)
 SESSION_ID=$(printf '%s' "$SESSION_ID" | tr -cd '[:alnum:]-_')
 
+# Per-session PID file for voice interruption (tracks spawned TTS/audio PIDs)
+PID_FILE="/tmp/claude-kitten-pids-${SESSION_ID}"
+
+# Record a background PID for later cleanup
+record_pid() {
+    echo "$1" >> "$PID_FILE"
+}
+
 # Audio player helper (supports macOS afplay, PulseAudio paplay, ALSA aplay)
 play_sound() {
     local file="$1"
     local vol="${2:-$VOLUME}"
     if command -v afplay &>/dev/null; then
         afplay -v "$vol" "$file" &
+        record_pid $!
     elif command -v paplay &>/dev/null; then
         # paplay volume is 0-65536 (linear)
         # Validate vol is numeric before interpolating into Python expression
@@ -153,9 +162,11 @@ play_sound() {
         [[ "$vol" =~ ^[0-9]*\.?[0-9]+$ ]] || vol=0.5
         pavol=$(python3 -c "print(int(${vol} * 65536))" 2>/dev/null) || pavol=32768
         paplay --volume="$pavol" "$file" &
+        record_pid $!
     elif command -v aplay &>/dev/null; then
         # Note: aplay does not support volume control
         aplay -q "$file" &
+        record_pid $!
     fi
 }
 
@@ -172,6 +183,7 @@ case "$EVENT" in
         find /tmp -maxdepth 1 -name 'claude-kitten-spam-*' -mmin +60 -delete 2>/dev/null || true
         find /tmp -maxdepth 1 -name 'claude-kitten-spamming-*' -mmin +60 -delete 2>/dev/null || true
         find /tmp -maxdepth 1 -name 'claude-kitten-ttsline-*' -mmin +60 -delete 2>/dev/null || true
+        find /tmp -maxdepth 1 -name 'claude-kitten-pids-*' -mmin +60 -delete 2>/dev/null || true
 
         # Initialize TTS offset to current transcript length (skip old messages)
         if [[ -n "$TRANSCRIPT_PATH" && -f "$TRANSCRIPT_PATH" ]]; then
@@ -204,6 +216,7 @@ print(greetings[int(sys.argv[2])])
 PYEOF
             ) || GREETING="Claude Kitten at your service!"
             python3 "$TTS_SCRIPT" --voice "$VOICE" --volume "$VOLUME" "$GREETING" &
+            record_pid $!
         fi
 
         # Pre-generate all cached sounds for this voice if any missing (background)
@@ -235,6 +248,7 @@ PYEOF
         [[ -z "$SEGMENTS" ]] && exit 0
 
         echo "$SEGMENTS" | python3 "$TTS_SCRIPT" --voice "$VOICE" --volume "$VOLUME" --stdin &
+        record_pid $!
         ;;
 
     PostToolUse)
@@ -249,6 +263,7 @@ PYEOF
         [[ -z "$SEGMENTS" ]] && exit 0
 
         echo "$SEGMENTS" | python3 "$TTS_SCRIPT" --voice "$VOICE" --volume "$VOLUME" --stdin &
+        record_pid $!
         ;;
 
     PostToolUseFailure)
@@ -261,6 +276,18 @@ PYEOF
         ;;
 
     UserPromptSubmit)
+        # Voice interruption: kill only this session's TTS/audio processes.
+        # PIDs are tracked in PID_FILE by record_pid(). We kill process groups
+        # (negative PID) so tts-speak.py's afplay children die too.
+        if [[ -f "$PID_FILE" ]]; then
+            while IFS= read -r pid; do
+                [[ -z "$pid" ]] && continue
+                # Kill process group first (catches child afplay), then process itself
+                kill -- "-$pid" 2>/dev/null || kill "$pid" 2>/dev/null || true
+            done < "$PID_FILE"
+            : > "$PID_FILE"
+        fi
+
         [[ "$EVT_ANTI_SPAM" == "false" ]] && exit 0
 
         # Track prompt timestamps for anti-spam
