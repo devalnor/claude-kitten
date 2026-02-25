@@ -8,6 +8,7 @@ CONFIG_DEFAULT="$PLUGIN_ROOT/config.default.json"
 CONFIG_FILE="$PLUGIN_ROOT/config.json"
 TTS_SCRIPT="$PLUGIN_ROOT/scripts/tts-speak.py"
 PARSE_MARKERS="$PLUGIN_ROOT/scripts/parse_markers.py"
+READ_MARKERS="$PLUGIN_ROOT/scripts/read-markers.py"
 GEN_SOUNDS="$PLUGIN_ROOT/scripts/generate-sounds.py"
 
 # Version from pyproject.toml (cached sound invalidation key)
@@ -166,12 +167,20 @@ case "$EVENT" in
         [[ "$EVT_SESSION_START" == "false" ]] && exit 0
         # Skip context compaction restarts
         [[ "$SOURCE" == "compact" ]] && exit 0
-        # Low presence: skip greeting entirely
-        [[ "$PRESENCE" == "low" ]] && exit 0
 
         # Clean stale /tmp files from previous sessions (older than 60 min)
         find /tmp -maxdepth 1 -name 'claude-kitten-spam-*' -mmin +60 -delete 2>/dev/null || true
         find /tmp -maxdepth 1 -name 'claude-kitten-spamming-*' -mmin +60 -delete 2>/dev/null || true
+        find /tmp -maxdepth 1 -name 'claude-kitten-ttsline-*' -mmin +60 -delete 2>/dev/null || true
+
+        # Initialize TTS offset to current transcript length (skip old messages)
+        if [[ -n "$TRANSCRIPT_PATH" && -f "$TRANSCRIPT_PATH" ]]; then
+            OFFSET_FILE="/tmp/claude-kitten-ttsline-${SESSION_ID}"
+            wc -l < "$TRANSCRIPT_PATH" | tr -d ' ' > "$OFFSET_FILE"
+        fi
+
+        # Low presence: skip greeting entirely
+        [[ "$PRESENCE" == "low" ]] && exit 0
 
         # Pick random greeting index (mid=0-4, high=5-9)
         if [[ "$PRESENCE" == "high" ]]; then
@@ -214,57 +223,31 @@ PYEOF
             exit 0
         fi
 
-        # Async hook: wait for Claude to finish writing the current response
-        # to the transcript file (avoids reading stale/previous message).
+        [[ -z "$TRANSCRIPT_PATH" || ! -f "$TRANSCRIPT_PATH" ]] && exit 0
+
+        # Wait for Claude to finish writing the transcript
         sleep 1
 
-        # Re-read transcript to get the CURRENT assistant message.
-        # The initial parse happens before Claude writes, so $MESSAGE may be stale.
-        if [[ -n "$TRANSCRIPT_PATH" && -f "$TRANSCRIPT_PATH" ]]; then
-            FRESH_MSG_FILE=$(mktemp)
-            python3 - "$TRANSCRIPT_PATH" "$FRESH_MSG_FILE" << 'PYEOF'
-import json, sys
-transcript_path = sys.argv[1]
-out_path = sys.argv[2]
-last_text = ''
-try:
-    with open(transcript_path) as tf:
-        for line in tf:
-            line = line.strip()
-            if not line:
-                continue
-            entry = json.loads(line)
-            if entry.get('type') == 'assistant':
-                msg = entry.get('message', {})
-                content = msg.get('content', [])
-                parts = []
-                for block in content:
-                    if isinstance(block, dict) and block.get('type') == 'text':
-                        parts.append(block.get('text', ''))
-                    elif isinstance(block, str):
-                        parts.append(block)
-                if parts:
-                    last_text = ' '.join(parts)
-except Exception:
-    pass
-with open(out_path, 'w') as f:
-    f.write(last_text)
-PYEOF
-            MESSAGE=$(cat "$FRESH_MSG_FILE")
-            rm -f "$FRESH_MSG_FILE"
-        fi
-
-        [[ -z "$MESSAGE" ]] && exit 0
-
-        # Extract marked text using shared module via temp file (no shell injection)
-        MSG_FILE=$(mktemp)
-        printf '%s' "$MESSAGE" > "$MSG_FILE"
-        SEGMENTS=$(python3 "$PARSE_MARKERS" "$MSG_FILE" 2>/dev/null) || { rm -f "$MSG_FILE"; exit 0; }
-        rm -f "$MSG_FILE"
+        # Read new markers since last PostToolUse (or all if first read)
+        OFFSET_FILE="/tmp/claude-kitten-ttsline-${SESSION_ID}"
+        SEGMENTS=$(python3 "$READ_MARKERS" "$TRANSCRIPT_PATH" "$OFFSET_FILE" 2>/dev/null) || exit 0
 
         [[ -z "$SEGMENTS" ]] && exit 0
 
-        # Speak all segments in one process (model loaded once via --stdin)
+        echo "$SEGMENTS" | python3 "$TTS_SCRIPT" --voice "$VOICE" --volume "$VOLUME" --stdin &
+        ;;
+
+    PostToolUse)
+        # Mid-turn TTS: speak intermediate markers (high presence only)
+        [[ "$PRESENCE" != "high" ]] && exit 0
+        [[ "$EVT_STOP_TTS" == "false" ]] && exit 0
+        [[ -z "$TRANSCRIPT_PATH" || ! -f "$TRANSCRIPT_PATH" ]] && exit 0
+
+        OFFSET_FILE="/tmp/claude-kitten-ttsline-${SESSION_ID}"
+        SEGMENTS=$(python3 "$READ_MARKERS" "$TRANSCRIPT_PATH" "$OFFSET_FILE" 2>/dev/null) || exit 0
+
+        [[ -z "$SEGMENTS" ]] && exit 0
+
         echo "$SEGMENTS" | python3 "$TTS_SCRIPT" --voice "$VOICE" --volume "$VOLUME" --stdin &
         ;;
 

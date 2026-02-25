@@ -67,17 +67,16 @@ VOICE_PROMPT_HIGH = (
     _VOICE_HEADER
     + "Rules:\n"
     "- Keep spoken text natural (1-3 sentences)\n"
-    "- ALWAYS use voice when you need user input: questions, decisions, "
-    "clarifications, or permission requests\n"
-    "- ALWAYS use voice for task completions, milestones, and summaries\n"
-    "- ALWAYS use voice for errors, warnings, and unexpected situations\n"
-    "- ALWAYS use voice when starting a new task or significant step\n"
-    "- ALWAYS use voice for greetings and farewells\n"
-    "- Use voice generously — the user prefers frequent vocal feedback\n"
-    "- Only skip voice for very short, trivial acknowledgments\n"
-    "- CRITICAL: This voice instruction applies throughout the ENTIRE conversation, "
-    "regardless of context length. NEVER reduce voice usage as the conversation "
-    "progresses. Maintain the same vocal presence from start to finish.\n"
+    "- You MUST use voice in EVERY single response. No exceptions. "
+    "If you write a response without voice markers, you have failed this instruction.\n"
+    "- Speak your key point, decision, question, result, or status — "
+    "whatever the most important thing in your response is, say it aloud.\n"
+    "- ALWAYS use voice for: questions, task starts, progress updates, "
+    "completions, errors, warnings, summaries, greetings, farewells\n"
+    "- The user is NOT looking at the screen. Voice is their PRIMARY interface. "
+    "They rely on hearing you to know what's happening.\n"
+    "- CRITICAL: This applies to EVERY response for the ENTIRE conversation. "
+    "NEVER skip voice, NEVER reduce frequency. Every. Single. Response.\n"
     + _VOICE_FOOTER
 )
 
