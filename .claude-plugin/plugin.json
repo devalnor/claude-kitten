@@ -1,6 +1,6 @@
 {
   "name": "claude-kitten",
-  "version": "0.2.2",
+  "version": "0.2.7",
   "description": "Voice-enabled Claude Code — important phrases spoken aloud via KittenTTS",
   "author": {
     "name": "Maxime"
