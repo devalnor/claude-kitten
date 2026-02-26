@@ -67,8 +67,12 @@ fi
 # --- Install Plugin ---
 
 info "Registering claude-kitten plugin..."
-claude plugin install "$PLUGIN_DIR" 2>/dev/null || {
-    err "Failed to register plugin. You may need to run: claude plugin install $PLUGIN_DIR"
+# Add the plugin directory as a local marketplace, then install by name
+claude plugin marketplace add "$PLUGIN_DIR" 2>/dev/null || true
+claude plugin install "claude-kitten@claude-kitten-local" 2>/dev/null || {
+    err "Failed to register plugin. You may need to run:"
+    err "  claude plugin marketplace add $PLUGIN_DIR"
+    err "  claude plugin install claude-kitten@claude-kitten-local"
     err "Continuing anyway..."
 }
 

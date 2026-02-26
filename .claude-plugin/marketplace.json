@@ -1,0 +1,13 @@
+{
+  "name": "claude-kitten-local",
+  "owner": {
+    "name": "Maxime"
+  },
+  "plugins": [
+    {
+      "name": "claude-kitten",
+      "source": "./",
+      "description": "Voice-enabled Claude Code — important phrases spoken aloud via KittenTTS"
+    }
+  ]
+}
