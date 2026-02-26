@@ -3,6 +3,9 @@
 # Receives JSON on stdin from Claude Code hooks, routes to appropriate action.
 set -euo pipefail
 
+# Only activate when launched via claude-kitten (not plain claude)
+[[ -z "${CLAUDE_KITTEN:-}" ]] && exit 0
+
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 CONFIG_DEFAULT="$PLUGIN_ROOT/config.default.json"
 CONFIG_FILE="$PLUGIN_ROOT/config.json"
