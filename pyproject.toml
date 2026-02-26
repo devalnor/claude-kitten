@@ -1,6 +1,6 @@
 [project]
 name = "claude-kitten"
-version = "0.2.7"
+version = "0.2.8"
 description = "Claude Code plugin — important phrases spoken aloud via KittenTTS"
 requires-python = ">=3.12"
 license = "MIT"
