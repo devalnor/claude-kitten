@@ -202,21 +202,13 @@ case "$EVENT" in
         fi
 
         GREETING_WAV="$CACHE_DIR/$VERSION/greeting-${VOICE}-${IDX}.wav"
+        WELCOME_WAV="$PLUGIN_ROOT/sounds/welcome.wav"
         if [[ -f "$GREETING_WAV" ]]; then
             # Cached: instant playback
             play_sound "$GREETING_WAV" "$VOLUME"
-        else
-            # Fallback: live TTS (first run or cache miss)
-            # Read greeting text from shared greetings.json (single source of truth)
-            GREETING=$(python3 - "$PLUGIN_ROOT/greetings.json" "$IDX" << 'PYEOF'
-import json, sys
-with open(sys.argv[1]) as f:
-    greetings = json.load(f)
-print(greetings[int(sys.argv[2])])
-PYEOF
-            ) || GREETING="Claude Kitten at your service!"
-            python3 "$TTS_SCRIPT" --voice "$VOICE" --volume "$VOLUME" "$GREETING" &
-            record_pid $!
+        elif [[ -f "$WELCOME_WAV" ]]; then
+            # Fallback: bundled welcome sound (avoids cold-start TTS latency)
+            play_sound "$WELCOME_WAV" "$VOLUME"
         fi
 
         # Pre-generate all cached sounds for this voice if any missing (background)

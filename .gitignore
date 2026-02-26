@@ -6,4 +6,5 @@ build/
 .pytest_cache/
 .claude/
 config.json
-sounds/
+sounds/*
+!sounds/welcome.wav
