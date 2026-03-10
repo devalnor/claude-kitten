@@ -64,19 +64,11 @@ else
     PLUGIN_DIR="$INSTALL_DIR"
 fi
 
-# --- Install Plugin ---
-
-info "Registering claude-kitten plugin..."
-# Add the plugin directory as a local marketplace, then install by name
-claude plugin marketplace add "$PLUGIN_DIR" 2>/dev/null || true
-claude plugin install "claude-kitten@claude-kitten-local" 2>/dev/null || {
-    err "Failed to register plugin. You may need to run:"
-    err "  claude plugin marketplace add $PLUGIN_DIR"
-    err "  claude plugin install claude-kitten@claude-kitten-local"
-    err "Continuing anyway..."
-}
-
 # --- Install CLI Entry Point ---
+# Note: The plugin hooks are loaded at runtime via --plugin-dir in the
+# claude-kitten launcher. No need to register with `claude plugin install`
+# (doing so would cause hooks to fire twice — once from the plugin system
+# and once from --plugin-dir).
 
 info "Installing claude-kitten command..."
 cd "$PLUGIN_DIR"
